@@ -6,8 +6,9 @@ import { cuisines } from '@/lib/data';
 import { RecipeCard } from './RecipeCard';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Search, Loader2 } from 'lucide-react';
-import { getRecipes } from '@/lib/firebase-data';
+import { Search } from 'lucide-react';
+import { collection, query, orderBy, onSnapshot } from 'firebase/firestore';
+import { db } from '@/lib/firebase';
 import { Skeleton } from '../ui/skeleton';
 
 export function RecipeList() {
@@ -17,13 +18,26 @@ export function RecipeList() {
   const [selectedCuisine, setSelectedCuisine] = useState('All');
 
   useEffect(() => {
-    const fetchRecipes = async () => {
-      setLoading(true);
-      const recipes = await getRecipes();
-      setAllRecipes(recipes);
-      setLoading(false);
-    };
-    fetchRecipes();
+    setLoading(true);
+    const q = query(collection(db, 'recipes'), orderBy('createdAt', 'desc'));
+    
+    const unsubscribe = onSnapshot(q, (querySnapshot) => {
+        const recipes = querySnapshot.docs.map(doc => {
+            const data = doc.data();
+            return {
+                ...data,
+                id: doc.id,
+                createdAt: data.createdAt?.toDate().toISOString() || new Date().toISOString(),
+            } as Recipe;
+        });
+        setAllRecipes(recipes);
+        setLoading(false);
+    }, (error) => {
+        console.error("Error fetching real-time recipes:", error);
+        setLoading(false);
+    });
+
+    return () => unsubscribe(); // Cleanup subscription on unmount
   }, []);
 
   const filteredRecipes = allRecipes.filter(recipe => {
