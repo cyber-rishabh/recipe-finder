@@ -5,13 +5,71 @@ import { defaultRecipes } from '@/lib/default-recipes';
 import Image from 'next/image';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { User, Calendar, ChefHat } from 'lucide-react';
+import { User, Calendar, ChefHat, Loader2 } from 'lucide-react';
 import { IngredientSubstitution } from '@/components/recipes/IngredientSubstitution';
+import { useEffect, useState } from 'react';
+import { doc, getDoc, Timestamp } from 'firebase/firestore';
+import { db } from '@/lib/firebase/client';
+import type { Recipe } from '@/lib/data';
 
 export default function RecipePage() {
   const params = useParams();
   const id = params.id as string;
-  const recipe = defaultRecipes.find(r => r.id === id);
+  
+  const [recipe, setRecipe] = useState<Recipe | null | undefined>(undefined);
+
+  useEffect(() => {
+    if (!id) return;
+    
+    const findRecipe = async () => {
+        const defaultRecipe = defaultRecipes.find(r => r.id === id);
+        if (defaultRecipe) {
+            setRecipe(defaultRecipe);
+            return;
+        }
+
+        if (db) {
+            try {
+                const docRef = doc(db, 'recipes', id);
+                const docSnap = await getDoc(docRef);
+
+                if (docSnap.exists()) {
+                    const data = docSnap.data();
+                    const createdAt = data.createdAt as Timestamp;
+                    setRecipe({
+                        id: docSnap.id,
+                        title: data.title,
+                        ingredients: data.ingredients,
+                        instructions: Array.isArray(data.instructions) ? data.instructions : (data.instructions || "").split('\n'),
+                        cuisine: data.cuisine,
+                        imageUrl: data.imageUrl,
+                        imageStoragePath: data.imageStoragePath,
+                        createdBy: data.createdBy,
+                        createdAt: createdAt?.toDate().toISOString() || new Date().toISOString(),
+                        imageHint: data.imageHint,
+                    });
+                } else {
+                    setRecipe(null); // Not found
+                }
+            } catch (error) {
+                console.error("Error fetching recipe:", error);
+                setRecipe(null);
+            }
+        } else {
+            setRecipe(null);
+        }
+    };
+    
+    findRecipe();
+  }, [id]);
+
+  if (recipe === undefined) {
+    return (
+        <div className="flex h-64 w-full items-center justify-center">
+            <Loader2 className="h-12 w-12 animate-spin text-primary" />
+        </div>
+    );
+  }
 
   if (!recipe) {
     notFound();
