@@ -40,8 +40,9 @@ export function RecipeForm({ initialData, formType, isAiGenerating = false }: Re
   const [cuisine, setCuisine] = useState('');
   const [ingredients, setIngredients] = useState<string[]>(['']);
   const [instructions, setInstructions] = useState('');
+  const [imageHint, setImageHint] = useState('user recipe');
   const [imagePreview, setImagePreview] = useState<string | null>(null); // Can be URL or Data URL
-  const [imageFile, setImageFile] = useState<string | File | null>(null); // Can be existing URL, new data URL, or new File
+  const [imageFile, setImageFile] = useState<string | null>(null); // Can be existing URL, or new data URL
   const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
@@ -49,9 +50,9 @@ export function RecipeForm({ initialData, formType, isAiGenerating = false }: Re
         setTitle(initialData.title || '');
         setCuisine(initialData.cuisine || '');
         setIngredients(initialData.ingredients?.length ? initialData.ingredients : ['']);
-        // AI provides instructions as an array, existing data is an array, but textarea needs a string.
         const instructionsText = Array.isArray(initialData.instructions) ? initialData.instructions.join('\n') : (initialData.instructions || '');
         setInstructions(instructionsText);
+        setImageHint(initialData.imageHint || 'user recipe');
         
         if (initialData.imageUrl) {
           setImagePreview(initialData.imageUrl);
@@ -75,15 +76,12 @@ export function RecipeForm({ initialData, formType, isAiGenerating = false }: Re
     setIngredients(newIngredients);
   };
   
-  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
-      setImageFile(file);
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setImagePreview(reader.result as string);
-      };
-      reader.readAsDataURL(file);
+      const dataUrl = await toDataURL(file);
+      setImageFile(dataUrl);
+      setImagePreview(dataUrl);
     }
   };
 
@@ -95,21 +93,13 @@ export function RecipeForm({ initialData, formType, isAiGenerating = false }: Re
     }
     setIsLoading(true);
 
-    let finalImageForUpload: string | File = '';
-    if (imageFile instanceof File) {
-        finalImageForUpload = await toDataURL(imageFile);
-    } else if (typeof imageFile === 'string') {
-        finalImageForUpload = imageFile;
-    }
-
-
     const recipeData = {
       title,
       cuisine,
-      imageHint: 'user recipe',
+      imageHint,
       ingredients: ingredients.filter(ing => ing.trim() !== ''),
       instructions: instructions.split('\n').filter(line => line.trim() !== ''),
-      imageUrl: finalImageForUpload,
+      imageUrl: imageFile || '', // Pass the data URI or existing URL
     };
 
     try {

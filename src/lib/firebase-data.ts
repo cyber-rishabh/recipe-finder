@@ -6,43 +6,35 @@ import { ref, uploadString, getDownloadURL, deleteObject } from 'firebase/storag
 import type { Recipe } from './data';
 import { revalidatePath } from 'next/cache';
 
-// Helper to convert data URI to Blob
-function dataUriToBlob(dataURI: string): Blob {
-    const byteString = atob(dataURI.split(',')[1]);
-    const mimeString = dataURI.split(',')[0].split(':')[1].split(';')[0];
-    const ab = new ArrayBuffer(byteString.length);
-    const ia = new Uint8Array(ab);
-    for (let i = 0; i < byteString.length; i++) {
-        ia[i] = byteString.charCodeAt(i);
-    }
-    return new Blob([ab], { type: mimeString });
-}
+type RecipeFormData = Omit<Recipe, 'id' | 'createdAt' | 'createdBy' | 'imageUrl' | 'imageStoragePath'> & {
+    imageUrl: string; // Can be a data URI, an existing https URL, or empty
+};
 
 
-export async function addRecipe(formData: Omit<Recipe, 'id' | 'createdAt' | 'imageUrl'> & { imageUrl: string | File }, userId: string) {
+export async function addRecipe(formData: RecipeFormData, userId: string) {
     let imageUrl = '';
-    let imagePath = '';
+    let imageStoragePath = '';
 
-    if (formData.imageUrl) {
-        const imageFile = formData.imageUrl;
+    // If imageUrl is a new image (data URI), upload it to Storage.
+    if (formData.imageUrl && formData.imageUrl.startsWith('data:')) {
         const fileName = `recipe_${Date.now()}`;
         const storageRef = ref(storage, `recipes/${userId}/${fileName}`);
-        imagePath = storageRef.fullPath;
         
-        if (typeof imageFile === 'string') {
-            // It's a data URI from the AI generator
-             await uploadString(storageRef, imageFile, 'data_url');
-        } else {
-             // It's a File object from direct upload - this requires a different upload method not easily available server-side without multipart parsers.
-             // We'll stick to data URI for simplicity of this server action. Client should convert File to data URI before calling.
-             throw new Error('File object upload from server action is not supported. Please convert to data URI on the client.');
-        }
+        await uploadString(storageRef, formData.imageUrl, 'data_url');
+        
         imageUrl = await getDownloadURL(storageRef);
+        imageStoragePath = storageRef.fullPath;
+    } else if (formData.imageUrl) {
+        // If it's not a data URI, assume it's an existing URL (e.g., from AI generation that wasn't changed)
+        // In this specific app flow, AI gives a data URI which is handled above, so this is a fallback.
+        // We don't have a storage path for this, so we leave it empty.
+        imageUrl = formData.imageUrl;
     }
 
     const recipeData = {
         ...formData,
         imageUrl,
+        imageStoragePath,
         createdBy: userId,
         createdAt: serverTimestamp(),
     };
@@ -87,39 +79,39 @@ export async function getRecipe(id: string) {
 }
 
 
-export async function updateRecipe(id: string, formData: Partial<Omit<Recipe, 'id' | 'createdAt' | 'imageUrl'>> & { imageUrl?: string | File }, userId: string) {
+export async function updateRecipe(id: string, formData: RecipeFormData, userId: string) {
     const docRef = doc(db, 'recipes', id);
     const recipeToUpdate = await getRecipe(id);
 
-    if (recipeToUpdate?.createdBy !== userId) {
+    if (!recipeToUpdate || recipeToUpdate.createdBy !== userId) {
         throw new Error('User not authorized to update this recipe.');
     }
 
     const updatedData: any = { ...formData };
     
-    if (formData.imageUrl && (typeof formData.imageUrl === 'string' && formData.imageUrl.startsWith('data:'))) {
-        const imageFile = formData.imageUrl;
-        // Delete old image if it exists
-        if (recipeToUpdate.imageUrl) {
+    // Check if a new image (as data URI) was provided for upload
+    if (formData.imageUrl && formData.imageUrl.startsWith('data:')) {
+        // Delete old image from storage if it exists and was managed by us
+        if (recipeToUpdate.imageStoragePath) {
             try {
-                const oldImageRef = ref(storage, recipeToUpdate.imageUrl);
+                const oldImageRef = ref(storage, recipeToUpdate.imageStoragePath);
                 await deleteObject(oldImageRef);
             } catch (error: any) {
-                // It's okay if old image deletion fails (e.g., it doesn't exist)
-                console.warn("Could not delete old image:", error.message);
+                 if (error.code !== 'storage/object-not-found') {
+                    console.warn("Could not delete old image:", error.message);
+                }
             }
         }
 
         const fileName = `recipe_${Date.now()}`;
         const storageRef = ref(storage, `recipes/${userId}/${fileName}`);
         
-        await uploadString(storageRef, imageFile, 'data_url');
+        await uploadString(storageRef, formData.imageUrl, 'data_url');
         updatedData.imageUrl = await getDownloadURL(storageRef);
-    } else if (formData.imageUrl === null) {
-        // Image was removed
-        updatedData.imageUrl = '';
+        updatedData.imageStoragePath = storageRef.fullPath;
+
     } else {
-        // No new image, or it's the existing URL string. Remove from update data.
+        // No new image was uploaded. We should not change the existing image fields.
         delete updatedData.imageUrl;
     }
 
@@ -140,13 +132,15 @@ export async function deleteRecipe(id: string, userId: string) {
         throw new Error("User not authorized to delete this recipe.");
     }
     
-    // Delete image from storage
-    if (recipeToDelete.imageUrl) {
+    // Delete image from storage if a path is stored
+    if (recipeToDelete.imageStoragePath) {
         try {
-            const imageRef = ref(storage, recipeToDelete.imageUrl);
+            const imageRef = ref(storage, recipeToDelete.imageStoragePath);
             await deleteObject(imageRef);
         } catch (error: any) {
-             console.warn("Could not delete image, it may not exist:", error.message);
+             if (error.code !== 'storage/object-not-found') {
+                console.warn("Could not delete image:", error.message);
+            }
         }
     }
 

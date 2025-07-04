@@ -5,6 +5,7 @@ export interface Recipe {
     instructions: string[];
     cuisine: string;
     imageUrl: string;
+    imageStoragePath: string; // Firebase Storage path
     createdBy: string;
     createdAt: string; // Stored as ISO string
     imageHint: string;

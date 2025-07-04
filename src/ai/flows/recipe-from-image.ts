@@ -24,6 +24,7 @@ const RecipeFromImageOutputSchema = z.object({
   cuisine: z.string().describe('The cuisine type of the dish (e.g., Italian, Mexican, etc.).'),
   ingredients: z.array(z.string()).describe('A list of ingredients required for the recipe.'),
   instructions: z.array(z.string()).describe('A list of step-by-step instructions to prepare the dish.'),
+  imageHint: z.string().describe('Two keywords describing the dish in the image, for image search purposes (e.g., "pasta bolognese").'),
 });
 export type RecipeFromImageOutput = z.infer<typeof RecipeFromImageOutputSchema>;
 
@@ -43,6 +44,7 @@ Analyze the provided image and generate a plausible recipe. Your response must b
 - Identify the cuisine type.
 - Provide a list of ingredients.
 - Provide a list of step-by-step instructions.
+- Provide two keywords that describe the dish in the image.
 
 Image of the dish:
 {{media url=photoDataUri}}`,
