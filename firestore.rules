@@ -1,0 +1,17 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /recipes/{recipeId} {
+      // Allow anyone to read recipes
+      allow read: if true;
+      // Allow only authenticated users to create, update, or delete their own recipes
+      allow create: if request.auth != null;
+      allow update, delete: if request.auth != null && request.auth.uid == resource.data.createdBy;
+    }
+    match /users/{userId}/{document=**} {
+      // Allow users to write to their own data
+      allow write: if request.auth != null && request.auth.uid == userId;
+    }
+  }
+}

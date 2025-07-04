@@ -1,16 +1,30 @@
 'use client';
 
-import { useState } from 'react';
-import { recipes as allRecipes, cuisines } from '@/lib/data';
+import { useState, useEffect } from 'react';
 import type { Recipe } from '@/lib/data';
+import { cuisines } from '@/lib/data';
 import { RecipeCard } from './RecipeCard';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Search } from 'lucide-react';
+import { Search, Loader2 } from 'lucide-react';
+import { getRecipes } from '@/lib/firebase-data';
+import { Skeleton } from '../ui/skeleton';
 
 export function RecipeList() {
+  const [allRecipes, setAllRecipes] = useState<Recipe[]>([]);
+  const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCuisine, setSelectedCuisine] = useState('All');
+
+  useEffect(() => {
+    const fetchRecipes = async () => {
+      setLoading(true);
+      const recipes = await getRecipes();
+      setAllRecipes(recipes);
+      setLoading(false);
+    };
+    fetchRecipes();
+  }, []);
 
   const filteredRecipes = allRecipes.filter(recipe => {
     const matchesSearch = recipe.title.toLowerCase().includes(searchTerm.toLowerCase()) || 
@@ -18,6 +32,18 @@ export function RecipeList() {
     const matchesCuisine = selectedCuisine === 'All' || recipe.cuisine === selectedCuisine;
     return matchesSearch && matchesCuisine;
   });
+  
+  const renderSkeletons = () => (
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+      {Array.from({ length: 8 }).map((_, i) => (
+        <div key={i} className="space-y-4">
+          <Skeleton className="h-48 w-full" />
+          <Skeleton className="h-6 w-3/4" />
+          <Skeleton className="h-4 w-1/4" />
+        </div>
+      ))}
+    </div>
+  );
 
   return (
     <div className="space-y-8">
@@ -44,7 +70,9 @@ export function RecipeList() {
         </Select>
       </div>
 
-      {filteredRecipes.length > 0 ? (
+      {loading ? (
+        renderSkeletons()
+      ) : filteredRecipes.length > 0 ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
           {filteredRecipes.map(recipe => (
             <RecipeCard key={recipe.id} recipe={recipe} />
@@ -53,7 +81,7 @@ export function RecipeList() {
       ) : (
         <div className="text-center py-16">
             <h2 className="text-2xl font-headline">No Recipes Found</h2>
-            <p className="text-muted-foreground">Try adjusting your search or filters.</p>
+            <p className="text-muted-foreground">Try adjusting your search or filters. Or be the first to add one!</p>
         </div>
       )}
     </div>

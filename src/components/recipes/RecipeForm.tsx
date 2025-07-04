@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import type { Recipe } from '@/lib/data';
 import { cuisines } from '@/lib/data';
@@ -10,9 +10,11 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { X, Plus } from 'lucide-react';
+import { X, Plus, Loader2 } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast"
 import Image from 'next/image';
+import { useAuth } from '@/contexts/AuthContext';
+import { addRecipe, updateRecipe } from '@/lib/firebase-data';
 
 interface RecipeFormProps {
   initialData?: Partial<Recipe>;
@@ -20,16 +22,43 @@ interface RecipeFormProps {
   isAiGenerating?: boolean;
 }
 
+// Helper to convert File to Data URL
+const toDataURL = (file: File) => new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onloadend = () => resolve(reader.result as string);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+});
+
+
 export function RecipeForm({ initialData, formType, isAiGenerating = false }: RecipeFormProps) {
   const router = useRouter();
   const { toast } = useToast();
+  const { user } = useAuth();
   
-  const [title, setTitle] = useState(initialData?.title || '');
-  const [cuisine, setCuisine] = useState(initialData?.cuisine || '');
-  const [ingredients, setIngredients] = useState<string[]>(initialData?.ingredients || ['']);
-  const [instructions, setInstructions] = useState(initialData?.instructions?.join('\n') || '');
-  const [imagePreview, setImagePreview] = useState<string | null>(initialData?.imageUrl || null);
+  const [title, setTitle] = useState('');
+  const [cuisine, setCuisine] = useState('');
+  const [ingredients, setIngredients] = useState<string[]>(['']);
+  const [instructions, setInstructions] = useState('');
+  const [imagePreview, setImagePreview] = useState<string | null>(null); // Can be URL or Data URL
+  const [imageFile, setImageFile] = useState<string | File | null>(null); // Can be existing URL, new data URL, or new File
+  const [isLoading, setIsLoading] = useState(false);
 
+  useEffect(() => {
+    if (initialData) {
+        setTitle(initialData.title || '');
+        setCuisine(initialData.cuisine || '');
+        setIngredients(initialData.ingredients?.length ? initialData.ingredients : ['']);
+        // AI provides instructions as an array, existing data is an array, but textarea needs a string.
+        const instructionsText = Array.isArray(initialData.instructions) ? initialData.instructions.join('\n') : (initialData.instructions || '');
+        setInstructions(instructionsText);
+        
+        if (initialData.imageUrl) {
+          setImagePreview(initialData.imageUrl);
+          setImageFile(initialData.imageUrl);
+        }
+    }
+  }, [initialData]);
 
   const handleIngredientChange = (index: number, value: string) => {
     const newIngredients = [...ingredients];
@@ -49,6 +78,7 @@ export function RecipeForm({ initialData, formType, isAiGenerating = false }: Re
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
+      setImageFile(file);
       const reader = new FileReader();
       reader.onloadend = () => {
         setImagePreview(reader.result as string);
@@ -57,17 +87,58 @@ export function RecipeForm({ initialData, formType, isAiGenerating = false }: Re
     }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // In a real app, this would submit to Firebase
-    
-    toast({
-        title: `Recipe ${formType === 'Add' ? 'Added' : 'Updated'}!`,
-        description: `Your recipe "${title}" has been successfully saved.`,
-    })
+    if (!user) {
+        toast({ variant: 'destructive', title: 'You must be logged in.' });
+        return;
+    }
+    setIsLoading(true);
 
-    router.push('/'); // Redirect to home after submission
+    let finalImageForUpload: string | File = '';
+    if (imageFile instanceof File) {
+        finalImageForUpload = await toDataURL(imageFile);
+    } else if (typeof imageFile === 'string') {
+        finalImageForUpload = imageFile;
+    }
+
+
+    const recipeData = {
+      title,
+      cuisine,
+      imageHint: 'user recipe',
+      ingredients: ingredients.filter(ing => ing.trim() !== ''),
+      instructions: instructions.split('\n').filter(line => line.trim() !== ''),
+      imageUrl: finalImageForUpload,
+    };
+
+    try {
+        if (formType === 'Add') {
+            await addRecipe(recipeData, user.uid);
+            toast({
+                title: 'Recipe Added!',
+                description: `Your recipe "${title}" has been successfully saved.`,
+            });
+        } else if (initialData?.id) {
+            await updateRecipe(initialData.id, recipeData, user.uid);
+             toast({
+                title: 'Recipe Updated!',
+                description: `Your recipe "${title}" has been successfully updated.`,
+            });
+        }
+        router.push('/');
+    } catch (error: any) {
+        toast({
+            variant: 'destructive',
+            title: 'Submission Failed',
+            description: error.message || 'An unexpected error occurred.',
+        });
+    } finally {
+        setIsLoading(false);
+    }
   };
+
+  const isSubmitDisabled = isLoading || isAiGenerating;
 
   return (
     <Card className="max-w-3xl mx-auto">
@@ -81,12 +152,12 @@ export function RecipeForm({ initialData, formType, isAiGenerating = false }: Re
         <form onSubmit={handleSubmit} className="space-y-6">
           <div className="space-y-2">
             <Label htmlFor="title">Recipe Name</Label>
-            <Input id="title" value={title} onChange={(e) => setTitle(e.target.value)} required />
+            <Input id="title" value={title} onChange={(e) => setTitle(e.target.value)} required disabled={isSubmitDisabled} />
           </div>
 
           <div className="space-y-2">
             <Label htmlFor="cuisine">Cuisine</Label>
-            <Select value={cuisine} onValueChange={setCuisine} required>
+            <Select value={cuisine} onValueChange={setCuisine} required disabled={isSubmitDisabled}>
               <SelectTrigger id="cuisine">
                 <SelectValue placeholder="Select a cuisine" />
               </SelectTrigger>
@@ -107,22 +178,23 @@ export function RecipeForm({ initialData, formType, isAiGenerating = false }: Re
                     value={ingredient}
                     onChange={(e) => handleIngredientChange(index, e.target.value)}
                     placeholder={`Ingredient ${index + 1}`}
+                    disabled={isSubmitDisabled}
                   />
                   {ingredients.length > 1 && (
-                    <Button type="button" variant="ghost" size="icon" onClick={() => removeIngredient(index)}>
+                    <Button type="button" variant="ghost" size="icon" onClick={() => removeIngredient(index)} disabled={isSubmitDisabled}>
                       <X className="h-4 w-4" />
                     </Button>
                   )}
                 </div>
               ))}
             </div>
-            <Button type="button" variant="outline" size="sm" onClick={addIngredient}>
+            <Button type="button" variant="outline" size="sm" onClick={addIngredient} disabled={isSubmitDisabled}>
               <Plus className="mr-2 h-4 w-4" /> Add Ingredient
             </Button>
           </div>
           
           <div className="space-y-2">
-            <Label htmlFor="instructions">Instructions</Label>
+            <Label htmlFor="instructions">Instructions (one per line)</Label>
             <Textarea
               id="instructions"
               value={instructions}
@@ -130,12 +202,13 @@ export function RecipeForm({ initialData, formType, isAiGenerating = false }: Re
               required
               rows={10}
               placeholder="Enter recipe instructions, one per line."
+              disabled={isSubmitDisabled}
             />
           </div>
 
           <div className="space-y-2">
             <Label htmlFor="image">Recipe Image</Label>
-            <Input id="image" type="file" onChange={handleImageChange} accept="image/*" />
+            <Input id="image" type="file" onChange={handleImageChange} accept="image/*" disabled={isSubmitDisabled} />
              {imagePreview && (
               <div className="mt-4 relative w-full h-64 rounded-lg overflow-hidden">
                 <Image src={imagePreview} alt="Recipe preview" fill className="object-cover" />
@@ -144,8 +217,11 @@ export function RecipeForm({ initialData, formType, isAiGenerating = false }: Re
           </div>
 
           <div className="flex justify-end gap-2">
-            <Button type="button" variant="outline" onClick={() => router.back()}>Cancel</Button>
-            <Button type="submit" disabled={isAiGenerating}>{formType} Recipe</Button>
+            <Button type="button" variant="outline" onClick={() => router.back()} disabled={isSubmitDisabled}>Cancel</Button>
+            <Button type="submit" disabled={isSubmitDisabled}>
+                {isLoading && <Loader2 className="animate-spin" />}
+                {formType} Recipe
+            </Button>
           </div>
         </form>
       </CardContent>

@@ -1,15 +1,34 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { ChefHat, PlusCircle } from "lucide-react";
-import { useState } from "react";
+import { useAuth } from "@/contexts/AuthContext";
+import { signOut } from "firebase/auth";
+import { auth } from "@/lib/firebase";
+import { useToast } from "@/hooks/use-toast";
 
 export function Header() {
-  // Mock authentication state
-  const [isAuthenticated, setIsAuthenticated] = useState(true);
+  const { isAuthenticated, user } = useAuth();
+  const router = useRouter();
+  const { toast } = useToast();
+
+  const handleLogout = async () => {
+    try {
+      await signOut(auth);
+      toast({ title: "Logged out successfully." });
+      router.push('/');
+    } catch (error) {
+      toast({ variant: 'destructive', title: "Logout failed", description: "Could not log you out. Please try again." });
+    }
+  };
+  
+  const getInitials = (email?: string | null) => {
+    return email ? email.charAt(0).toUpperCase() : 'U';
+  }
 
   return (
     <header className="bg-card shadow-md sticky top-0 z-40">
@@ -36,22 +55,22 @@ export function Header() {
                 <DropdownMenuTrigger asChild>
                   <Button variant="ghost" className="relative h-10 w-10 rounded-full">
                     <Avatar className="h-10 w-10">
-                      <AvatarImage src="https://placehold.co/100x100" alt="User" data-ai-hint="user avatar" />
-                      <AvatarFallback>U</AvatarFallback>
+                      <AvatarImage src={user?.photoURL || ''} alt={user?.displayName || "User"} data-ai-hint="user avatar" />
+                      <AvatarFallback>{getInitials(user?.email)}</AvatarFallback>
                     </Avatar>
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent className="w-56" align="end" forceMount>
                   <DropdownMenuLabel className="font-normal">
                     <div className="flex flex-col space-y-1">
-                      <p className="text-sm font-medium leading-none">User</p>
+                      <p className="text-sm font-medium leading-none">{user?.displayName || 'User'}</p>
                       <p className="text-xs leading-none text-muted-foreground">
-                        user@example.com
+                        {user?.email}
                       </p>
                     </div>
                   </DropdownMenuLabel>
                   <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={() => setIsAuthenticated(false)}>
+                  <DropdownMenuItem onClick={handleLogout}>
                     Log out
                   </DropdownMenuItem>
                 </DropdownMenuContent>
