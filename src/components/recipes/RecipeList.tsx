@@ -3,24 +3,20 @@
 import { useState, useEffect } from 'react';
 import type { Recipe } from '@/lib/data';
 import { cuisines } from '@/lib/data';
+import { defaultRecipes } from '@/lib/default-recipes';
 import { RecipeCard } from './RecipeCard';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Search, Loader2 } from 'lucide-react';
+import { Search } from 'lucide-react';
 import { collection, query, orderBy, onSnapshot } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { Skeleton } from '../ui/skeleton';
-import { Button } from '@/components/ui/button';
-import { runSeedDatabase } from '@/lib/actions';
-import { useToast } from '@/hooks/use-toast';
 
 export function RecipeList() {
-  const [allRecipes, setAllRecipes] = useState<Recipe[]>([]);
+  const [firebaseRecipes, setFirebaseRecipes] = useState<Recipe[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCuisine, setSelectedCuisine] = useState('All');
-  const [isSeeding, setIsSeeding] = useState(false);
-  const { toast } = useToast();
 
   useEffect(() => {
     setLoading(true);
@@ -35,7 +31,7 @@ export function RecipeList() {
                 createdAt: data.createdAt?.toDate().toISOString() || new Date().toISOString(),
             } as Recipe;
         });
-        setAllRecipes(recipes);
+        setFirebaseRecipes(recipes);
         setLoading(false);
     }, (error) => {
         console.error("Error fetching real-time recipes:", error);
@@ -44,28 +40,10 @@ export function RecipeList() {
 
     return () => unsubscribe(); // Cleanup subscription on unmount
   }, []);
-  
-  const handleSeed = async () => {
-    setIsSeeding(true);
-    try {
-      await runSeedDatabase();
-      toast({
-        title: "Success!",
-        description: "Sample recipes have been added to your collection.",
-      });
-      // The `onSnapshot` listener will automatically update the recipes list
-    } catch (error: any) {
-      toast({
-        variant: "destructive",
-        title: "Seeding Failed",
-        description: error.message,
-      });
-    } finally {
-      setIsSeeding(false);
-    }
-  };
 
-  const filteredRecipes = allRecipes.filter(recipe => {
+  const combinedRecipes = [...defaultRecipes, ...firebaseRecipes];
+
+  const filteredRecipes = combinedRecipes.filter(recipe => {
     const matchesSearch = recipe.title.toLowerCase().includes(searchTerm.toLowerCase()) || 
                           recipe.ingredients.some(ing => ing.toLowerCase().includes(searchTerm.toLowerCase()));
     const matchesCuisine = selectedCuisine === 'All' || recipe.cuisine === selectedCuisine;
@@ -120,11 +98,7 @@ export function RecipeList() {
       ) : (
         <div className="text-center py-16">
             <h2 className="text-2xl font-headline">No Recipes Found</h2>
-            <p className="text-muted-foreground mb-4">Your recipe book is empty. Add a recipe or seed some examples.</p>
-            <Button onClick={handleSeed} disabled={isSeeding}>
-                {isSeeding ? <Loader2 className="mr-2 animate-spin" /> : null}
-                {isSeeding ? 'Seeding...' : 'Seed Sample Recipes'}
-            </Button>
+            <p className="text-muted-foreground">Try adjusting your search or filter to find what you're looking for.</p>
         </div>
       )}
     </div>

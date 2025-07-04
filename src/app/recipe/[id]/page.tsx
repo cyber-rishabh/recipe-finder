@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useRouter, notFound } from 'next/navigation';
 import { getRecipe, deleteRecipe } from '@/lib/firebase-data';
+import { defaultRecipes } from '@/lib/default-recipes';
 import type { Recipe } from '@/lib/data';
 import Image from 'next/image';
 import { Badge } from '@/components/ui/badge';
@@ -36,23 +37,36 @@ export default function RecipePage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (id) {
-      const fetchRecipe = async () => {
+    if (!id) return;
+    
+    const fetchRecipe = async () => {
         setLoading(true);
-        const fetchedRecipe = await getRecipe(id);
-        if (fetchedRecipe) {
-          setRecipe(fetchedRecipe);
+
+        // Check if it's a default recipe
+        if (id.startsWith('default-')) {
+            const foundRecipe = defaultRecipes.find(r => r.id === id);
+            if (foundRecipe) {
+                setRecipe(foundRecipe);
+            } else {
+                notFound();
+            }
         } else {
-          notFound();
+            // Fetch from Firebase
+            const fetchedRecipe = await getRecipe(id);
+            if (fetchedRecipe) {
+                setRecipe(fetchedRecipe);
+            } else {
+                notFound();
+            }
         }
         setLoading(false);
-      };
-      fetchRecipe();
-    }
+    };
+
+    fetchRecipe();
   }, [id]);
 
   const handleDelete = async () => {
-    if (!recipe || !user) return;
+    if (!recipe || !user || recipe.id.startsWith('default-')) return;
     try {
         await deleteRecipe(recipe.id, user.uid);
         toast({title: "Success", description: "Recipe deleted successfully."});
@@ -140,7 +154,7 @@ export default function RecipePage() {
                     )}
                 </CardHeader>
                 <CardContent className="space-y-4 text-sm">
-                     <div className="flex items-center text-muted-foreground"><User className="mr-2 h-4 w-4" /><span>By a Recipe Hub user</span></div>
+                     <div className="flex items-center text-muted-foreground"><User className="mr-2 h-4 w-4" /><span>By {recipe.createdBy === 'system' ? 'Recipe Hub' : 'a Recipe Hub user'}</span></div>
                      <div className="flex items-center text-muted-foreground"><Calendar className="mr-2 h-4 w-4" /><span>{new Date(recipe.createdAt).toLocaleDateString()}</span></div>
                      <div className="flex items-center text-muted-foreground"><ChefHat className="mr-2 h-4 w-4" /><span>{recipe.cuisine} Cuisine</span></div>
                 </CardContent>

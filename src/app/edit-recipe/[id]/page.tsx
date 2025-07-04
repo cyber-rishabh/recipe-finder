@@ -22,6 +22,12 @@ export default function EditRecipePage() {
     useEffect(() => {
         if (!id || authLoading) return;
         
+        // Default recipes cannot be edited
+        if (id.startsWith('default-')) {
+            notFound();
+            return;
+        }
+
         const fetchAndVerify = async () => {
             setLoading(true);
             const fetchedRecipe = await getRecipe(id);

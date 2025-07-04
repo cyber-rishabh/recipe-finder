@@ -4,7 +4,6 @@ import { ingredientSubstitution } from '@/ai/flows/ingredient-substitution';
 import type { IngredientSubstitutionInput } from '@/ai/flows/ingredient-substitution';
 import { generateRecipeFromImage } from '@/ai/flows/recipe-from-image';
 import type { RecipeFromImageInput } from '@/ai/flows/recipe-from-image';
-import { seedRecipes } from './firebase-data';
 
 
 export async function runIngredientSubstitution(input: IngredientSubstitutionInput) {
@@ -24,14 +23,5 @@ export async function runGenerateRecipeFromImage(input: RecipeFromImageInput) {
     } catch (error) {
         console.error(error);
         throw new Error('Failed to generate recipe from image.');
-    }
-}
-
-export async function runSeedDatabase() {
-    try {
-        await seedRecipes();
-    } catch (error) {
-        console.error('Failed to seed database:', error);
-        throw new Error('Could not seed the database.');
     }
 }
