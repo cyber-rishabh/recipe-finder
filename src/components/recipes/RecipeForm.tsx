@@ -10,11 +10,9 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { X, Plus, Loader2 } from 'lucide-react';
+import { X, Plus } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast"
 import Image from 'next/image';
-import { useAuth } from '@/contexts/AuthContext';
-import { addRecipe, updateRecipe } from '@/lib/firebase-data';
 
 interface RecipeFormProps {
   initialData?: Partial<Recipe>;
@@ -34,16 +32,12 @@ const toDataURL = (file: File) => new Promise<string>((resolve, reject) => {
 export function RecipeForm({ initialData, formType, isAiGenerating = false }: RecipeFormProps) {
   const router = useRouter();
   const { toast } = useToast();
-  const { user } = useAuth();
   
   const [title, setTitle] = useState('');
   const [cuisine, setCuisine] = useState('');
   const [ingredients, setIngredients] = useState<string[]>(['']);
   const [instructions, setInstructions] = useState('');
-  const [imageHint, setImageHint] = useState('user recipe');
   const [imagePreview, setImagePreview] = useState<string | null>(null); // Can be URL or Data URL
-  const [imageFile, setImageFile] = useState<string | null>(null); // Can be existing URL, or new data URL
-  const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
     if (initialData) {
@@ -52,11 +46,9 @@ export function RecipeForm({ initialData, formType, isAiGenerating = false }: Re
         setIngredients(initialData.ingredients?.length ? initialData.ingredients : ['']);
         const instructionsText = Array.isArray(initialData.instructions) ? initialData.instructions.join('\n') : (initialData.instructions || '');
         setInstructions(instructionsText);
-        setImageHint(initialData.imageHint || 'user recipe');
         
         if (initialData.imageUrl) {
           setImagePreview(initialData.imageUrl);
-          setImageFile(initialData.imageUrl);
         }
     }
   }, [initialData]);
@@ -80,62 +72,27 @@ export function RecipeForm({ initialData, formType, isAiGenerating = false }: Re
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
       const dataUrl = await toDataURL(file);
-      setImageFile(dataUrl);
       setImagePreview(dataUrl);
     }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!user) {
-        toast({ variant: 'destructive', title: 'You must be logged in.' });
-        return;
-    }
-    setIsLoading(true);
-
-    const recipeData = {
-      title,
-      cuisine,
-      imageHint,
-      ingredients: ingredients.filter(ing => ing.trim() !== ''),
-      instructions: instructions.split('\n').filter(line => line.trim() !== ''),
-      imageUrl: imageFile || '', // Pass the data URI or existing URL
-    };
-
-    try {
-        if (formType === 'Add') {
-            await addRecipe(recipeData, user.uid);
-            toast({
-                title: 'Recipe Added!',
-                description: `Your recipe "${title}" has been successfully saved.`,
-            });
-        } else if (initialData?.id) {
-            await updateRecipe(initialData.id, recipeData, user.uid);
-             toast({
-                title: 'Recipe Updated!',
-                description: `Your recipe "${title}" has been successfully updated.`,
-            });
-        }
-        router.push('/');
-    } catch (error: any) {
-        toast({
-            variant: 'destructive',
-            title: 'Submission Failed',
-            description: error.message || 'An unexpected error occurred.',
-        });
-    } finally {
-        setIsLoading(false);
-    }
+    toast({
+        variant: 'destructive',
+        title: 'Feature Disabled',
+        description: 'Database integration is currently disabled. Cannot save the recipe.',
+    });
   };
 
-  const isSubmitDisabled = isLoading || isAiGenerating;
+  const isSubmitDisabled = isAiGenerating;
 
   return (
     <Card className="max-w-3xl mx-auto">
       <CardHeader>
         <CardTitle className="font-headline text-3xl">{formType} Recipe</CardTitle>
         <CardDescription>
-          {initialData ? 'Review and edit the details below.' : `Fill out the details below to ${formType.toLowerCase()} your recipe.`}
+          {initialData ? 'Review the details below.' : `Fill out the details below to ${formType.toLowerCase()} your recipe. Saving is currently disabled.`}
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -209,7 +166,6 @@ export function RecipeForm({ initialData, formType, isAiGenerating = false }: Re
           <div className="flex justify-end gap-2">
             <Button type="button" variant="outline" onClick={() => router.back()} disabled={isSubmitDisabled}>Cancel</Button>
             <Button type="submit" disabled={isSubmitDisabled}>
-                {isLoading && <Loader2 className="animate-spin" />}
                 {formType} Recipe
             </Button>
           </div>

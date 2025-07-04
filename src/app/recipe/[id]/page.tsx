@@ -1,94 +1,21 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { useParams, useRouter, notFound } from 'next/navigation';
-import { getRecipe, deleteRecipe } from '@/lib/firebase-data';
+import { useParams, notFound } from 'next/navigation';
 import { defaultRecipes } from '@/lib/default-recipes';
-import type { Recipe } from '@/lib/data';
 import Image from 'next/image';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import Link from 'next/link';
-import { Pencil, Trash2, User, Calendar, ChefHat, Loader2 } from 'lucide-react';
+import { User, Calendar, ChefHat } from 'lucide-react';
 import { IngredientSubstitution } from '@/components/recipes/IngredientSubstitution';
-import { useAuth } from '@/contexts/AuthContext';
-import { useToast } from '@/hooks/use-toast';
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog"
 
 export default function RecipePage() {
   const params = useParams();
   const id = params.id as string;
-  const router = useRouter();
-  const { toast } = useToast();
-  const { user, isAuthenticated } = useAuth();
-
-  const [recipe, setRecipe] = useState<Recipe | null>(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    if (!id) return;
-    
-    const fetchRecipe = async () => {
-        setLoading(true);
-
-        // Check if it's a default recipe
-        if (id.startsWith('default-')) {
-            const foundRecipe = defaultRecipes.find(r => r.id === id);
-            if (foundRecipe) {
-                setRecipe(foundRecipe);
-            } else {
-                notFound();
-            }
-        } else {
-            // Fetch from Firebase
-            const fetchedRecipe = await getRecipe(id);
-            if (fetchedRecipe) {
-                setRecipe(fetchedRecipe);
-            } else {
-                notFound();
-            }
-        }
-        setLoading(false);
-    };
-
-    fetchRecipe();
-  }, [id]);
-
-  const handleDelete = async () => {
-    if (!recipe || !user || recipe.id.startsWith('default-')) return;
-    try {
-        await deleteRecipe(recipe.id, user.uid);
-        toast({title: "Success", description: "Recipe deleted successfully."});
-        router.push('/');
-    } catch(error: any) {
-        toast({variant: 'destructive', title: "Error", description: error.message});
-    }
-  };
-
-  if (loading) {
-    return (
-      <div className="flex justify-center items-center h-full py-20">
-        <Loader2 className="h-16 w-16 animate-spin text-primary" />
-      </div>
-    );
-  }
+  const recipe = defaultRecipes.find(r => r.id === id);
 
   if (!recipe) {
-    return notFound();
+    notFound();
   }
-  
-  const isOwner = isAuthenticated && user?.uid === recipe.createdBy;
 
   return (
     <div className="max-w-5xl mx-auto">
@@ -127,31 +54,6 @@ export default function RecipePage() {
             <Card>
                  <CardHeader className="flex flex-row items-center justify-between pb-4">
                     <CardTitle className="font-headline text-2xl">Details</CardTitle>
-                    {isOwner && (
-                        <div className="flex gap-2">
-                            <Button asChild variant="outline" size="icon">
-                                <Link href={`/edit-recipe/${recipe.id}`}><Pencil className="h-4 w-4" /></Link>
-                            </Button>
-                             <AlertDialog>
-                                <AlertDialogTrigger asChild>
-                                    <Button variant="destructive" size="icon"><Trash2 className="h-4 w-4" /></Button>
-                                </AlertDialogTrigger>
-                                <AlertDialogContent>
-                                    <AlertDialogHeader>
-                                    <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-                                    <AlertDialogDescription>
-                                        This action cannot be undone. This will permanently delete the recipe
-                                        &quot;{recipe.title}&quot;.
-                                    </AlertDialogDescription>
-                                    </AlertDialogHeader>
-                                    <AlertDialogFooter>
-                                    <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                    <AlertDialogAction onClick={handleDelete} className="bg-destructive hover:bg-destructive/90">Delete</AlertDialogAction>
-                                    </AlertDialogFooter>
-                                </AlertDialogContent>
-                            </AlertDialog>
-                        </div>
-                    )}
                 </CardHeader>
                 <CardContent className="space-y-4 text-sm">
                      <div className="flex items-center text-muted-foreground"><User className="mr-2 h-4 w-4" /><span>By {recipe.createdBy === 'system' ? 'Recipe Hub' : 'a Recipe Hub user'}</span></div>

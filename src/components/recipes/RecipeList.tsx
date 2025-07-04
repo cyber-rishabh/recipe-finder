@@ -1,66 +1,23 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import type { Recipe } from '@/lib/data';
+import { useState } from 'react';
 import { cuisines } from '@/lib/data';
 import { defaultRecipes } from '@/lib/default-recipes';
 import { RecipeCard } from './RecipeCard';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Search } from 'lucide-react';
-import { collection, query, orderBy, onSnapshot } from 'firebase/firestore';
-import { db } from '@/lib/firebase';
-import { Skeleton } from '../ui/skeleton';
 
 export function RecipeList() {
-  const [firebaseRecipes, setFirebaseRecipes] = useState<Recipe[]>([]);
-  const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCuisine, setSelectedCuisine] = useState('All');
 
-  useEffect(() => {
-    setLoading(true);
-    const q = query(collection(db, 'recipes'), orderBy('createdAt', 'desc'));
-    
-    const unsubscribe = onSnapshot(q, (querySnapshot) => {
-        const recipes = querySnapshot.docs.map(doc => {
-            const data = doc.data();
-            return {
-                ...data,
-                id: doc.id,
-                createdAt: data.createdAt?.toDate().toISOString() || new Date().toISOString(),
-            } as Recipe;
-        });
-        setFirebaseRecipes(recipes);
-        setLoading(false);
-    }, (error) => {
-        console.error("Error fetching real-time recipes:", error);
-        setLoading(false);
-    });
-
-    return () => unsubscribe(); // Cleanup subscription on unmount
-  }, []);
-
-  const combinedRecipes = [...defaultRecipes, ...firebaseRecipes];
-
-  const filteredRecipes = combinedRecipes.filter(recipe => {
+  const filteredRecipes = defaultRecipes.filter(recipe => {
     const matchesSearch = recipe.title.toLowerCase().includes(searchTerm.toLowerCase()) || 
                           recipe.ingredients.some(ing => ing.toLowerCase().includes(searchTerm.toLowerCase()));
     const matchesCuisine = selectedCuisine === 'All' || recipe.cuisine === selectedCuisine;
     return matchesSearch && matchesCuisine;
   });
-  
-  const renderSkeletons = () => (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-      {Array.from({ length: 8 }).map((_, i) => (
-        <div key={i} className="space-y-4">
-          <Skeleton className="h-48 w-full" />
-          <Skeleton className="h-6 w-3/4" />
-          <Skeleton className="h-4 w-1/4" />
-        </div>
-      ))}
-    </div>
-  );
 
   return (
     <div className="space-y-8">
@@ -87,9 +44,7 @@ export function RecipeList() {
         </Select>
       </div>
 
-      {loading ? (
-        renderSkeletons()
-      ) : filteredRecipes.length > 0 ? (
+      {filteredRecipes.length > 0 ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
           {filteredRecipes.map(recipe => (
             <RecipeCard key={recipe.id} recipe={recipe} />
