@@ -15,19 +15,20 @@ import { useToast } from "@/hooks/use-toast"
 import Image from 'next/image';
 
 interface RecipeFormProps {
-  recipe?: Recipe;
+  initialData?: Partial<Recipe>;
   formType: 'Add' | 'Edit';
+  isAiGenerating?: boolean;
 }
 
-export function RecipeForm({ recipe, formType }: RecipeFormProps) {
+export function RecipeForm({ initialData, formType, isAiGenerating = false }: RecipeFormProps) {
   const router = useRouter();
   const { toast } = useToast();
   
-  const [title, setTitle] = useState(recipe?.title || '');
-  const [cuisine, setCuisine] = useState(recipe?.cuisine || '');
-  const [ingredients, setIngredients] = useState<string[]>(recipe?.ingredients || ['']);
-  const [instructions, setInstructions] = useState(recipe?.instructions.join('\n') || '');
-  const [imagePreview, setImagePreview] = useState<string | null>(recipe?.imageUrl || null);
+  const [title, setTitle] = useState(initialData?.title || '');
+  const [cuisine, setCuisine] = useState(initialData?.cuisine || '');
+  const [ingredients, setIngredients] = useState<string[]>(initialData?.ingredients || ['']);
+  const [instructions, setInstructions] = useState(initialData?.instructions?.join('\n') || '');
+  const [imagePreview, setImagePreview] = useState<string | null>(initialData?.imageUrl || null);
 
 
   const handleIngredientChange = (index: number, value: string) => {
@@ -72,7 +73,9 @@ export function RecipeForm({ recipe, formType }: RecipeFormProps) {
     <Card className="max-w-3xl mx-auto">
       <CardHeader>
         <CardTitle className="font-headline text-3xl">{formType} Recipe</CardTitle>
-        <CardDescription>Fill out the details below to {formType.toLowerCase()} your recipe.</CardDescription>
+        <CardDescription>
+          {initialData ? 'Review and edit the details below.' : `Fill out the details below to ${formType.toLowerCase()} your recipe.`}
+        </CardDescription>
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit} className="space-y-6">
@@ -142,7 +145,7 @@ export function RecipeForm({ recipe, formType }: RecipeFormProps) {
 
           <div className="flex justify-end gap-2">
             <Button type="button" variant="outline" onClick={() => router.back()}>Cancel</Button>
-            <Button type="submit">{formType} Recipe</Button>
+            <Button type="submit" disabled={isAiGenerating}>{formType} Recipe</Button>
           </div>
         </form>
       </CardContent>

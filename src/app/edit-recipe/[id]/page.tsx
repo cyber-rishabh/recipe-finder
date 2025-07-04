@@ -11,5 +11,5 @@ export default function EditRecipePage({ params }: { params: { id: string } }) {
         notFound();
     }
     
-    return <RecipeForm formType="Edit" recipe={recipe} />;
+    return <RecipeForm formType="Edit" initialData={recipe} />;
 }

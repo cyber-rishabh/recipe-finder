@@ -9,7 +9,7 @@ import { useState } from "react";
 
 export function Header() {
   // Mock authentication state
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [isAuthenticated, setIsAuthenticated] = useState(true);
 
   return (
     <header className="bg-card shadow-md sticky top-0 z-40">
