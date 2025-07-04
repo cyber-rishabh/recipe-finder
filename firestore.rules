@@ -3,8 +3,13 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     match /recipes/{recipeId} {
+      // Anyone can read recipes
       allow read: if true;
+
+      // Only authenticated users can create recipes, and they must be the author.
       allow create: if request.auth != null && request.auth.uid == request.resource.data.createdBy;
+
+      // Only the author of a recipe can update or delete it.
       allow update, delete: if request.auth != null && request.auth.uid == resource.data.createdBy;
     }
   }
