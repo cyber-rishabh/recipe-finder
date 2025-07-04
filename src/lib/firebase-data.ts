@@ -148,3 +148,111 @@ export async function deleteRecipe(id: string, userId: string) {
     await deleteDoc(docRef);
     revalidatePath('/');
 }
+
+export async function seedRecipes() {
+    const sampleRecipes = [
+        {
+            title: "Classic Spaghetti Carbonara",
+            cuisine: "Italian",
+            ingredients: ["200g Spaghetti", "100g Guanciale", "2 large Eggs", "50g Pecorino Romano", "Black Pepper"],
+            instructions: ["Boil spaghetti until al dente.", "While pasta cooks, fry guanciale in a pan until crisp.", "In a bowl, whisk eggs and Pecorino cheese.", "Drain pasta, reserving some pasta water. Add pasta to the pan with guanciale.", "Remove from heat, pour in egg mixture, stirring quickly. Add pasta water if needed to create a creamy sauce.", "Serve immediately with lots of black pepper."],
+            imageHint: "pasta carbonara",
+            imageUrl: "https://placehold.co/600x400",
+        },
+        {
+            title: "Chicken Tikka Masala",
+            cuisine: "Indian",
+            ingredients: ["500g Chicken Breast", "1 cup Yogurt", "1 tbsp Ginger-Garlic Paste", "1 tsp Turmeric", "1 cup Tomato Puree", "1 cup Heavy Cream", "Garam Masala"],
+            instructions: ["Marinate chicken in yogurt, ginger-garlic paste, and spices for at least 1 hour.", "Grill or pan-fry the chicken until cooked through.", "In a separate pan, heat tomato puree and simmer for 10 minutes.", "Stir in heavy cream and garam masala.", "Add the cooked chicken to the sauce and simmer for 5-10 minutes.", "Serve hot with naan or rice."],
+            imageHint: "chicken tikka",
+            imageUrl: "https://placehold.co/600x400",
+        },
+        {
+            title: "American Cheeseburger",
+            cuisine: "American",
+            ingredients: ["500g Ground Beef", "4 Burger Buns", "4 slices Cheddar Cheese", "Lettuce", "Tomato", "Onion", "Pickles"],
+            instructions: ["Form ground beef into 4 patties.", "Season patties with salt and pepper.", "Grill or pan-fry patties to desired doneness.", "Place a slice of cheddar cheese on each patty during the last minute of cooking.", "Toast the burger buns.", "Assemble burgers with lettuce, tomato, onion, and pickles."],
+            imageHint: "cheeseburger meal",
+            imageUrl: "https://placehold.co/600x400",
+        },
+        {
+            title: "Sushi Rolls (Maki)",
+            cuisine: "Japanese",
+            ingredients: ["2 cups Sushi Rice", "4 sheets Nori", "1 Cucumber", "1 Avocado", "200g Tuna or Salmon", "Soy Sauce", "Wasabi"],
+            instructions: ["Cook sushi rice according to package directions.", "Lay a sheet of nori on a bamboo rolling mat.", "Spread a thin layer of rice over the nori, leaving a small border at the top.", "Place your fillings (cucumber, avocado, fish) in a line across the center.", "Roll the nori tightly from the bottom up.", "Slice the roll into 8 pieces and serve with soy sauce and wasabi."],
+            imageHint: "sushi rolls",
+            imageUrl: "https://placehold.co/600x400",
+        },
+        {
+            title: "Classic Beef Tacos",
+            cuisine: "Mexican",
+            ingredients: ["500g Ground Beef", "1 packet Taco Seasoning", "8 Taco Shells", "Salsa", "Sour Cream", "Shredded Cheese", "Shredded Lettuce"],
+            instructions: ["Brown the ground beef in a skillet; drain fat.", "Stir in taco seasoning and a little water; simmer for 5 minutes.", "Warm taco shells in the oven.", "Fill shells with beef mixture.", "Top with salsa, sour cream, cheese, and lettuce."],
+            imageHint: "beef tacos",
+            imageUrl: "https://placehold.co/600x400",
+        },
+        {
+            title: "Kung Pao Chicken",
+            cuisine: "Chinese",
+            ingredients: ["500g Chicken Breast, cubed", "1 tbsp Soy Sauce", "1 tbsp Cornstarch", "Dried Red Chilies", "Peanuts", "1 Bell Pepper", "Scallions"],
+            instructions: ["In a bowl, toss chicken with soy sauce and cornstarch.", "Heat oil in a wok or large skillet. Stir-fry chicken until golden.", "Add dried chilies and peanuts, stir-frying for another minute.", "Add chopped bell pepper and a sauce made of soy sauce, vinegar, and sugar.", "Cook until sauce thickens. Garnish with scallions."],
+            imageHint: "kung pao",
+            imageUrl: "https://placehold.co/600x400",
+        },
+        {
+            title: "Thai Green Curry",
+            cuisine: "Thai",
+            ingredients: ["2 tbsp Green Curry Paste", "400ml Coconut Milk", "500g Chicken or Tofu", "1 cup Bamboo Shoots", "1 Red Bell Pepper", "Thai Basil Leaves"],
+            instructions: ["In a large pot, fry the green curry paste for one minute until fragrant.", "Stir in half of the coconut milk and cook until the oil separates.", "Add the chicken or tofu and cook until done.", "Add the remaining coconut milk, bamboo shoots, and bell pepper. Simmer until vegetables are tender.", "Stir in Thai basil leaves before serving."],
+            imageHint: "green curry",
+            imageUrl: "https://placehold.co/600x400",
+        },
+        {
+            title: "French Onion Soup",
+            cuisine: "French",
+            ingredients: ["4 large Onions, sliced", "4 tbsp Butter", "1 liter Beef Broth", "250ml White Wine", "Baguette slices", "Gruyere Cheese"],
+            instructions: ["In a large pot, melt butter and cook onions slowly for 25-30 minutes until deeply caramelized.", "Deglaze the pot with white wine.", "Add beef broth and simmer for at least 30 minutes.", "Ladle soup into oven-safe bowls.", "Top with a slice of baguette and a generous amount of Gruyere cheese.", "Broil until cheese is bubbly and golden."],
+            imageHint: "onion soup",
+            imageUrl: "https://placehold.co/600x400",
+        },
+        {
+            title: "Caprese Salad",
+            cuisine: "Italian",
+            ingredients: ["4 large Tomatoes", "250g Fresh Mozzarella", "Fresh Basil Leaves", "Extra Virgin Olive Oil", "Balsamic Glaze"],
+            instructions: ["Slice tomatoes and mozzarella into 1/4-inch thick slices.", "Arrange alternating slices of tomato, mozzarella, and basil leaves on a platter.", "Drizzle with extra virgin olive oil.", "Season with salt and pepper.", "Finish with a drizzle of balsamic glaze just before serving."],
+            imageHint: "caprese salad",
+            imageUrl: "https://placehold.co/600x400",
+        },
+        {
+            title: "Chocolate Chip Cookies",
+            cuisine: "American",
+            ingredients: ["2 1/4 cups All-Purpose Flour", "1 tsp Baking Soda", "1 cup Butter, softened", "3/4 cup Granulated Sugar", "3/4 cup Brown Sugar", "2 large Eggs", "2 cups Chocolate Chips"],
+            instructions: ["Preheat oven to 375°F (190°C).", "In a small bowl, whisk together flour and baking soda.", "In a large bowl, beat butter, granulated sugar, and brown sugar until creamy.", "Add eggs one at a time, beating well after each.", "Gradually beat in the flour mixture.", "Stir in chocolate chips.", "Drop by rounded spoonfuls onto ungreased baking sheets.", "Bake for 9 to 11 minutes or until golden brown."],
+            imageHint: "chocolate cookies",
+            imageUrl: "https://placehold.co/600x400",
+        }
+    ];
+
+    const recipesCollection = collection(db, 'recipes');
+    const existingRecipes = await getDocs(query(recipesCollection));
+    
+    if (existingRecipes.size > 0) {
+        console.log("Database already has recipes. Seeding skipped.");
+        return; 
+    }
+
+    const batch = [];
+    for (const recipe of sampleRecipes) {
+        const recipeData = {
+            ...recipe,
+            createdBy: 'system-seed',
+            createdAt: serverTimestamp(),
+            imageStoragePath: '' // No storage path for seeded images
+        };
+        batch.push(addDoc(collection(db, 'recipes'), recipeData));
+    }
+    
+    await Promise.all(batch);
+    console.log("Database seeded successfully.");
+    revalidatePath('/');
+}
