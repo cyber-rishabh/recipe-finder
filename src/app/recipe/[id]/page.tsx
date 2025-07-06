@@ -6,10 +6,7 @@ import Image from 'next/image';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { User, Calendar, ChefHat, Loader2 } from 'lucide-react';
-import { IngredientSubstitution } from '@/components/recipes/IngredientSubstitution';
 import { useEffect, useState } from 'react';
-import { doc, getDoc, Timestamp } from 'firebase/firestore';
-import { db } from '@/lib/firebase/client';
 import type { Recipe } from '@/lib/data';
 
 export default function RecipePage() {
@@ -28,34 +25,30 @@ export default function RecipePage() {
             return;
         }
 
-        if (db) {
-            try {
-                const docRef = doc(db, 'recipes', id);
-                const docSnap = await getDoc(docRef);
-
-                if (docSnap.exists()) {
-                    const data = docSnap.data();
-                    const createdAt = data.createdAt as Timestamp;
-                    setRecipe({
-                        id: docSnap.id,
-                        title: data.title,
-                        ingredients: data.ingredients,
-                        instructions: Array.isArray(data.instructions) ? data.instructions : (data.instructions || "").split('\n'),
-                        cuisine: data.cuisine,
-                        imageUrl: data.imageUrl,
-                        imageStoragePath: data.imageStoragePath,
-                        createdBy: data.createdBy,
-                        createdAt: createdAt?.toDate().toISOString() || new Date().toISOString(),
-                        imageHint: data.imageHint,
-                    });
-                } else {
-                    setRecipe(null); // Not found
-                }
-            } catch (error) {
-                console.error("Error fetching recipe:", error);
-                setRecipe(null);
+        try {
+            const response = await fetch(`/api/recipes/${id}`);
+            
+            if (response.ok) {
+                const data = await response.json();
+                const recipeData = data.recipe;
+                
+                setRecipe({
+                    id: recipeData._id,
+                    title: recipeData.title,
+                    ingredients: recipeData.ingredients,
+                    instructions: recipeData.instructions,
+                    cuisine: recipeData.cuisine,
+                    imageUrl: recipeData.imageUrl,
+                    imageStoragePath: recipeData.imageUrl,
+                    createdBy: recipeData.createdBy?.email || 'Unknown',
+                    createdAt: recipeData.createdAt,
+                    imageHint: '',
+                });
+            } else {
+                setRecipe(null); // Not found
             }
-        } else {
+        } catch (error) {
+            console.error("Error fetching recipe:", error);
             setRecipe(null);
         }
     };
@@ -129,7 +122,6 @@ export default function RecipePage() {
                         {recipe.ingredients.map((ingredient) => (
                            <li key={ingredient} className="flex flex-col border-b pb-2 last:border-none">
                                <span>{ingredient}</span>
-                               <IngredientSubstitution recipeName={recipe.title} ingredient={ingredient} />
                            </li>
                         ))}
                     </ul>

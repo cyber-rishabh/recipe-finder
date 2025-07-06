@@ -5,10 +5,32 @@ export interface Recipe {
     instructions: string[];
     cuisine: string;
     imageUrl: string;
-    imageStoragePath: string; // Firebase Storage path
+    imageStoragePath: string; // Image storage path
     createdBy: string;
     createdAt: string; // Stored as ISO string
     imageHint: string;
 }
 
-export const cuisines = ['All', 'Italian', 'Indian', 'American', 'Japanese', 'Mexican', 'Chinese', 'Thai', 'French', 'Other'];
+export const cuisines = [
+    'All',
+    'Italian',
+    'Mexican',
+    'Chinese',
+    'Indian',
+    'Japanese',
+    'Thai',
+    'French',
+    'Mediterranean',
+    'American',
+    'Korean',
+    'Vietnamese',
+    'Greek',
+    'Spanish',
+    'Middle Eastern',
+    'African',
+    'Caribbean',
+    'Latin American',
+    'European',
+    'Asian',
+    'International',
+] as const;

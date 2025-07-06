@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { RecipeForm } from "@/components/recipes/RecipeForm";
-import { RecipeGenerator } from '@/components/recipes/RecipeGenerator';
+import { RecipeSearch } from "@/components/recipes/RecipeSearch";
 import type { Recipe } from '@/lib/data';
 import { Separator } from '@/components/ui/separator';
 import { useAuth } from '@/hooks/use-auth';
@@ -13,15 +13,10 @@ import { Lock } from 'lucide-react';
 
 export default function AddRecipePage() {
     const [recipeData, setRecipeData] = useState<Partial<Recipe> | undefined>();
-    const [isGenerating, setIsGenerating] = useState(false);
     const { user } = useAuth();
 
-    const handleRecipeGenerated = (data: Partial<Recipe>) => {
+    const handleRecipeFound = (data: Partial<Recipe>) => {
         setRecipeData(data);
-    };
-    
-    const handleClearGenerator = () => {
-        setRecipeData(undefined);
     };
 
     if (!user) {
@@ -47,20 +42,13 @@ export default function AddRecipePage() {
 
     return (
         <div>
-            <RecipeGenerator
-                onRecipeGenerated={handleRecipeGenerated}
-                onClear={handleClearGenerator}
-                isGenerating={isGenerating}
-                setIsGenerating={setIsGenerating}
-            />
-
-            {(recipeData || isGenerating) && <Separator className="my-8" />}
+            <RecipeSearch onRecipeFound={handleRecipeFound} />
+            
+            {recipeData && <Separator className="my-8" />}
             
             <RecipeForm 
                 formType="Add" 
-                initialData={recipeData} 
-                key={recipeData ? JSON.stringify(recipeData) : 'empty'}
-                isAiGenerating={isGenerating}
+                initialData={recipeData}
             />
         </div>
     );

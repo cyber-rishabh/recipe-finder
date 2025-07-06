@@ -12,35 +12,52 @@ interface RecipeCardProps {
 export function RecipeCard({ recipe }: RecipeCardProps) {
   return (
     <Link href={`/recipe/${recipe.id}`} className="group block">
-      <Card className="h-full flex flex-col transition-all duration-300 group-hover:shadow-xl group-hover:-translate-y-1">
+      <Card className="h-full flex flex-col overflow-hidden transition-all duration-300 hover:shadow-2xl hover:-translate-y-2 border-0 bg-white/90 backdrop-blur-sm">
         <CardHeader className="p-0">
-          <div className="relative h-48 w-full overflow-hidden rounded-t-lg">
+          <div className="relative h-56 w-full overflow-hidden">
             <Image
               src={recipe.imageUrl}
               alt={recipe.title}
               fill
-              className="object-cover transition-transform duration-300 group-hover:scale-105"
+              className="object-cover transition-transform duration-500 group-hover:scale-110"
               data-ai-hint={recipe.imageHint}
             />
+            <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+            <div className="absolute top-3 right-3">
+              <Badge className="bg-white/90 text-foreground border-0 font-medium">
+                {recipe.cuisine}
+              </Badge>
+            </div>
           </div>
         </CardHeader>
-        <CardContent className="flex-grow p-4">
-          <CardTitle className="font-headline text-xl leading-tight mb-2">{recipe.title}</CardTitle>
-          <div className="flex items-center text-sm text-muted-foreground">
-            <ChefHat className="mr-1.5 h-4 w-4" />
-            <span>{recipe.cuisine}</span>
+        <CardContent className="flex-grow p-6">
+          <CardTitle className="font-headline text-xl leading-tight mb-3 text-foreground group-hover:text-primary transition-colors">
+            {recipe.title}
+          </CardTitle>
+          <div className="flex items-center text-sm text-muted-foreground mb-4">
+            <ChefHat className="mr-2 h-4 w-4" />
+            <span>{recipe.ingredients.length} ingredients</span>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {recipe.ingredients.slice(0, 3).map((ingredient) => (
+              <Badge 
+                key={ingredient} 
+                variant="secondary" 
+                className="text-xs bg-muted/50 hover:bg-muted transition-colors"
+              >
+                {ingredient}
+              </Badge>
+            ))}
+            {recipe.ingredients.length > 3 && (
+              <Badge 
+                variant="outline" 
+                className="text-xs border-muted-foreground/20"
+              >
+                +{recipe.ingredients.length - 3} more
+              </Badge>
+            )}
           </div>
         </CardContent>
-        <CardFooter className="p-4 pt-0">
-            <div className="flex flex-wrap gap-1">
-                {recipe.ingredients.slice(0, 3).map((ingredient) => (
-                    <Badge key={ingredient} variant="secondary">{ingredient}</Badge>
-                ))}
-                {recipe.ingredients.length > 3 && (
-                    <Badge variant="outline">+{recipe.ingredients.length - 3} more</Badge>
-                )}
-            </div>
-        </CardFooter>
       </Card>
     </Link>
   );

@@ -6,75 +6,59 @@ import { defaultRecipes } from '@/lib/default-recipes';
 import { RecipeCard } from './RecipeCard';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Search, Loader2, ServerCrash } from 'lucide-react';
+import { Search, Loader2 } from 'lucide-react';
 import type { Recipe } from '@/lib/data';
-import { db, isFirebaseConfigured, firebaseConfig } from '@/lib/firebase/client';
-import { collection, query, onSnapshot, orderBy, Timestamp } from 'firebase/firestore';
 import { Alert, AlertDescription, AlertTitle } from '../ui/alert';
-
-const FirebaseConfigWarning = () => (
-    <Alert variant="destructive" className="max-w-2xl mx-auto">
-        <ServerCrash className="h-4 w-4" />
-        <AlertTitle>Firebase Not Configured</AlertTitle>
-        <AlertDescription>
-            <p>Your app is not connected to Firebase. Please configure your environment variables to enable saving and loading recipes.</p>
-            <p className="font-mono bg-muted p-2 rounded-md mt-4 text-xs">
-                Create a `.env.local` file and add the following keys from your Firebase project settings:
-                <br/><br/>
-                {Object.keys(firebaseConfig).map(key => <span key={key} className="block">{`NEXT_PUBLIC_${key.toUpperCase()}=...`}</span>)}
-            </p>
-        </AlertDescription>
-    </Alert>
-)
 
 export function RecipeList() {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCuisine, setSelectedCuisine] = useState('All');
-  const [firestoreRecipes, setFirestoreRecipes] = useState<Recipe[]>([]);
+  const [userRecipes, setUserRecipes] = useState<Recipe[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const firebaseConfigured = isFirebaseConfigured();
-
   useEffect(() => {
-    if (!firebaseConfigured || !db) {
+    const fetchRecipes = async () => {
+      try {
+        setIsLoading(true);
+        const response = await fetch('/api/recipes');
+        
+        if (response.ok) {
+          const data = await response.json();
+          
+          // Transform MongoDB recipes to match the Recipe interface
+          const transformedRecipes: Recipe[] = data.recipes.map((recipe: any) => ({
+            id: recipe._id,
+            title: recipe.title,
+            ingredients: recipe.ingredients,
+            instructions: recipe.instructions,
+            cuisine: recipe.cuisine,
+            imageUrl: recipe.imageUrl,
+            imageStoragePath: recipe.imageUrl, // Map to imageUrl for compatibility
+            createdBy: recipe.createdBy?.email || 'Unknown',
+            createdAt: recipe.createdAt,
+            imageHint: '',
+          }));
+          
+          setUserRecipes(transformedRecipes);
+        } else {
+          // If API fails, just set empty user recipes but don't show error
+          setUserRecipes([]);
+        }
+      } catch (err) {
+        console.error('Error fetching recipes:', err);
+        // Don't set error - just use empty user recipes
+        setUserRecipes([]);
+      } finally {
         setIsLoading(false);
-        return;
-    }
+      }
+    };
 
-    setIsLoading(true);
-    const q = query(collection(db, "recipes"), orderBy("createdAt", "desc"));
-    
-    const unsubscribe = onSnapshot(q, (querySnapshot) => {
-        const recipes: Recipe[] = [];
-        querySnapshot.forEach((doc) => {
-            const data = doc.data();
-            const createdAt = data.createdAt as Timestamp;
-            recipes.push({
-                id: doc.id,
-                title: data.title,
-                ingredients: data.ingredients,
-                instructions: Array.isArray(data.instructions) ? data.instructions : (data.instructions || "").split('\n'),
-                cuisine: data.cuisine,
-                imageUrl: data.imageUrl,
-                imageStoragePath: data.imageStoragePath,
-                createdBy: data.createdBy,
-                createdAt: createdAt?.toDate().toISOString() || new Date().toISOString(),
-                imageHint: data.imageHint,
-            });
-        });
-        setFirestoreRecipes(recipes);
-        setIsLoading(false);
-    }, (err) => {
-        console.error("Firestore error:", err);
-        setError("Could not load recipes from the database. Please check your Firestore rules and configuration.");
-        setIsLoading(false);
-    });
-
-    return () => unsubscribe();
-  }, [firebaseConfigured]);
+    fetchRecipes();
+  }, []);
   
-  const allRecipes = [...defaultRecipes, ...firestoreRecipes];
+  // Always combine default recipes with user recipes
+  const allRecipes = [...defaultRecipes, ...userRecipes];
 
   const filteredRecipes = allRecipes.filter(recipe => {
     const matchesSearch = recipe.title.toLowerCase().includes(searchTerm.toLowerCase()) || 
@@ -85,49 +69,75 @@ export function RecipeList() {
 
   return (
     <div className="space-y-8">
-      <div className="flex flex-col md:flex-row gap-4">
-        <div className="relative flex-grow">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-          <Input
-            type="search"
-            placeholder="Search by ingredient or recipe name..."
-            className="pl-10 text-base"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
+      {/* Search and Filter Section */}
+      <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 shadow-sm border">
+        <div className="flex flex-col md:flex-row gap-4">
+          <div className="relative flex-grow">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+            <Input
+              type="search"
+              placeholder="Search by ingredient or recipe name..."
+              className="pl-10 text-base h-12"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
+          </div>
+          <Select value={selectedCuisine} onValueChange={setSelectedCuisine}>
+            <SelectTrigger className="w-full md:w-[180px] text-base h-12">
+              <SelectValue placeholder="Filter by cuisine" />
+            </SelectTrigger>
+            <SelectContent>
+              {cuisines.map(cuisine => (
+                <SelectItem key={cuisine} value={cuisine}>{cuisine}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
-        <Select value={selectedCuisine} onValueChange={setSelectedCuisine}>
-          <SelectTrigger className="w-full md:w-[180px] text-base">
-            <SelectValue placeholder="Filter by cuisine" />
-          </SelectTrigger>
-          <SelectContent>
-            {cuisines.map(cuisine => (
-              <SelectItem key={cuisine} value={cuisine}>{cuisine}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
       </div>
 
-      {!firebaseConfigured && <FirebaseConfigWarning />}
-      {isLoading && firebaseConfigured && (
-          <div className="text-center py-16">
-              <Loader2 className="mx-auto h-12 w-12 animate-spin text-primary" />
-              <p className="mt-4 text-muted-foreground">Loading delicious recipes...</p>
+      {/* Loading State */}
+      {isLoading && (
+        <div className="text-center py-20">
+          <div className="inline-flex items-center justify-center w-16 h-16 bg-primary/10 rounded-full mb-4">
+            <Loader2 className="h-8 w-8 animate-spin text-primary" />
           </div>
+          <h3 className="text-xl font-semibold text-foreground mb-2">Loading delicious recipes...</h3>
+          <p className="text-muted-foreground">Preparing your culinary collection</p>
+        </div>
       )}
-      {error && <Alert variant="destructive"><AlertTitle>Error</AlertTitle><AlertDescription>{error}</AlertDescription></Alert>}
 
-      {!isLoading && !error && filteredRecipes.length > 0 && (
+      {/* Recipe Grid */}
+      {!isLoading && filteredRecipes.length > 0 && (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
           {filteredRecipes.map(recipe => (
             <RecipeCard key={recipe.id} recipe={recipe} />
           ))}
         </div>
       )}
-       {!isLoading && !error && filteredRecipes.length === 0 && (
-        <div className="text-center py-16">
-            <h2 className="text-2xl font-headline">No Recipes Found</h2>
-            <p className="text-muted-foreground">Try adjusting your search or filter to find what you're looking for.</p>
+      
+      {/* Empty State */}
+      {!isLoading && filteredRecipes.length === 0 && (
+        <div className="text-center py-20">
+          <div className="inline-flex items-center justify-center w-16 h-16 bg-muted rounded-full mb-4">
+            <Search className="h-8 w-8 text-muted-foreground" />
+          </div>
+          <h3 className="text-xl font-semibold text-foreground mb-2">No Recipes Found</h3>
+          <p className="text-muted-foreground mb-6 max-w-md mx-auto">
+            {searchTerm || selectedCuisine !== 'All' 
+              ? "Try adjusting your search or filter to find what you're looking for."
+              : "Start building your recipe collection by adding your first recipe!"
+            }
+          </p>
+          {!searchTerm && selectedCuisine === 'All' && (
+            <div className="flex justify-center">
+              <a 
+                href="/add-recipe" 
+                className="inline-flex items-center px-6 py-3 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors"
+              >
+                Add Your First Recipe
+              </a>
+            </div>
+          )}
         </div>
       )}
     </div>
